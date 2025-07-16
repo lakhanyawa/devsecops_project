@@ -2,9 +2,9 @@
 # Stage 1: Build
 FROM node:18-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
+COPY app/package*.json ./
 RUN npm install
-COPY . .
+COPY app .
 
 # Stage 2: Runtime
 FROM node:18-alpine

@@ -1,0 +1,45 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+
+      - name: Static Analysis with Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: 'p/default'
+
+      - name: Build Docker image
+        run: docker build -t devsecops-node-app .
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'devsecops-node-app'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Push to DockerHub if clean
+        if: success()
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker tag devsecops-node-app ${{ secrets.DOCKER_USERNAME }}/devsecops-node-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/devsecops-node-app:latest
